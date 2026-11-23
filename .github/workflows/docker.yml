@@ -14,10 +14,17 @@ on:
         required: false
         default: main
         type: string
+      codex_version:
+        description: Codex CLI version to install (empty uses the pin below)
+        required: false
+        type: string
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  # CI always passes this value, so it overrides the Dockerfile default.
+  CODEX_VERSION: 0.171.0
+  REF_TAG: ${{ github.event.inputs.hermes_ref }}
 
 jobs:
   docker:
@@ -54,7 +61,7 @@ jobs:
             type=ref,event=tag
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=${{ inputs.hermes_ref }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.hermes_ref != '' }}
+            type=raw,value=${{ env.REF_TAG }},enable=${{ env.REF_TAG != '' }}
 
       - name: Build and push image
         uses: docker/build-push-action@v6
@@ -62,7 +69,8 @@ jobs:
           context: .
           file: ./Dockerfile
           build-args: |
-            HERMES_REF=${{ inputs.hermes_ref || 'main' }}
+            HERMES_REF=${{ env.REF_TAG || 'main' }}
+            CODEX_VERSION=${{ inputs.codex_version || env.CODEX_VERSION }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
